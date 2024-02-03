@@ -1,11 +1,11 @@
-version: '3.8'
+version: "3.8"
 
 services:
   primary:
     container_name: postgres-primary
     build:
       context: .
-      args: 
+      args:
         PATH_TO_SCRIPTS: ./source
     environment:
       POSTGRES_USER: postgresadmin
@@ -19,13 +19,13 @@ services:
       - ./source/config:/config
       - ./source/archive:/archive
     ports:
-      - "5000:5432"
+      - "5433:5432"
     networks:
-      - replication-network
+      - physical-replication-network
     restart: unless-stopped
     command: postgres -c config_file=/config/postgresql.conf
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -d postgres" ]
+      test: ["CMD-SHELL", "pg_isready -d postgres"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -34,7 +34,7 @@ services:
     container_name: postgres-standby-1
     build:
       context: .
-      args: 
+      args:
         PATH_TO_SCRIPTS: ./standby
     environment:
       POSTGRES_USER: postgresadmin
@@ -47,15 +47,15 @@ services:
       - ./standby/config:/config
       - ./standby/archive:/mnt/server/archive
     ports:
-      - "5001:5432"
+      - "5434:5432"
     networks:
-      - replication-network
+      - physical-replication-network
     restart: unless-stopped
     command: postgres -c config_file=/config/postgresql.conf
-    depends_on: 
+    depends_on:
       - primary
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -d postgres" ]
+      test: ["CMD-SHELL", "pg_isready -d postgres"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -64,7 +64,7 @@ services:
     container_name: postgres-standby-2
     build:
       context: .
-      args: 
+      args:
         PATH_TO_SCRIPTS: ./standby
     environment:
       POSTGRES_USER: postgresadmin
@@ -77,21 +77,21 @@ services:
       - ./standby/config:/config
       - ./standby/archive:/mnt/server/archive
     ports:
-      - "5002:5432"
+      - "5435:5432"
     networks:
-      - replication-network
+      - physical-replication-network
     restart: unless-stopped
     command: postgres -c config_file=/config/postgresql.conf
-    depends_on: 
+    depends_on:
       - primary
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -d postgres" ]
+      test: ["CMD-SHELL", "pg_isready -d postgres"]
       interval: 30s
       timeout: 10s
       retries: 5
 
 networks:
-  replication-network:
+  physical-replication-network:
 
 volumes:
   postgres_primary_volume:

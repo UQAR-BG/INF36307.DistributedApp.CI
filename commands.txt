@@ -30,3 +30,6 @@ docker exec -it postgres-secondary psql --username=postgresadmin postgresdb
 
 docker image build -t localhost/postgres-primary:latest --build-arg="PATH_TO_SCRIPTS=./source" .
 docker image build -t localhost/postgres-standby:latest --build-arg="PATH_TO_SCRIPTS=./standby" .
+
+select * from pg_stat_replication;
+select * from pg_stat_wal_receiver;
