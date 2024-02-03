@@ -1,6 +1,12 @@
 @ECHO OFF
 
 :: This batch file creates all the necessary ressources 
+docker network create physical-replication-network
+docker network create logical-replication-network
+docker network create range-partitioning-network
+docker network create hash-partitioning-network
+docker network create list-partitioning-network
+
 docker container stop postgres-primary
 docker container rm postgres-primary
 

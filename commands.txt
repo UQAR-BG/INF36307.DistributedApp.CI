@@ -33,3 +33,6 @@ docker image build -t localhost/postgres-standby:latest --build-arg="PATH_TO_SCR
 
 select * from pg_stat_replication;
 select * from pg_stat_wal_receiver;
+
+# Select content of partitioned table with the partition id
+select tableoid::regclass, * from customers;

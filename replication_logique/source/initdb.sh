@@ -6,7 +6,15 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" -d "$POSTGRES_DB"  <<-EOSQL
 
     GRANT CONNECT ON DATABASE $POSTGRES_DB TO $REPLICATION_USER;
 
-    CREATE TABLE customers (firstname text, customer_id serial, date_created timestamp);
+    CREATE TABLE customers (
+        id serial, 
+        firstname text, 
+        lastname text,
+        email text,
+        country text,
+        age smallint,
+        date_created timestamp, 
+    ) PARTITION BY RANGE (age);
     INSERT INTO customers (firstname, date_created) VALUES ('Vuyisile', CURRENT_TIMESTAMP);
 
     CREATE TABLE sales (
