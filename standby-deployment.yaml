@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-standby
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-standby
+  template:
+    metadata:
+      labels:
+        app: postgres-standby
+    spec:
+      containers:
+      - name: postgres-standby
+        image: localhost/postgres-standby:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: POSTGRES_USER
+          value: postgresadmin
+        - name: POSTGRES_PASSWORD
+          value: BgqzYc4lM7OypUh
+        - name: PGDATA
+          value: /data/
+        - name: POSTGRES_DB
+          value: postgresdb
+        - name: REPLICATION_USER
+          value: replicationuser
+        - name: PRIMARY_HOSTNAME
+          value: postgres-primary
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: standby-config
+          mountPath: /config
+      volumes:
+      - name: standby-config
+        configMap:
+          name: postgres-standby-config
