@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   primary:
-    container_name: postgres-primary
+    container_name: primary
     build:
       context: .
       args:
@@ -10,11 +10,10 @@ services:
     environment:
       POSTGRES_USER: postgresadmin
       POSTGRES_PASSWORD: BgqzYc4lM7OypUh
-      PGDATA: /data/
       POSTGRES_DB: postgresdb
+      PRIMARY_HOSTNAME: primary
       REPLICATION_USER: replicationuser
       REPLICATION_USER_PASSWORD: BgqzYc4lM7OypUh
-      PRIMARY_HOSTNAME: postgres-primary
     volumes:
       - postgres_primary_volume:/data
       - ./source/config:/config
@@ -22,17 +21,10 @@ services:
     ports:
       - "5433:5432"
     networks:
-      - sharding-network
-    restart: unless-stopped
-    command: postgres -c config_file=/config/postgresql.conf
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d postgres"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      - logical-replication-network
 
-  standby-1:
-    container_name: postgres-standby-1
+  node1:
+    container_name: node1
     build:
       context: .
       args:
@@ -40,42 +32,23 @@ services:
     environment:
       POSTGRES_USER: postgresadmin
       POSTGRES_PASSWORD: BgqzYc4lM7OypUh
-      PGDATA: /data/
       POSTGRES_DB: postgresdb
+      PRIMARY_HOSTNAME: primary
       REPLICATION_USER: replicationuser
-      PRIMARY_HOSTNAME: postgres-primary
-      CUSTOMER_PARTITIONS: |
-        [
-          {
-            "NAME": "customers_child",
-            "AGE_MIN": 0,
-            "AGE_MAX": 12
-          },
-          {
-            "NAME": "customers_teenager",
-            "AGE_MIN": 12,
-            "AGE_MAX": 18
-          },
-        ]
+      REPLICATION_USER_PASSWORD: BgqzYc4lM7OypUh
     volumes:
       - ./standby/config:/config
       - ./standby/archive:/mnt/server/archive
+    command: postgres -c config_file=/config/postgresql.conf
+    depends_on:
+      - primary
     ports:
       - "5434:5432"
     networks:
-      - sharding-network
-    restart: unless-stopped
-    command: postgres -c config_file=/config/postgresql.conf
-    depends_on:
-      - primary
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d postgres"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      - logical-replication-network
 
-  standby-2:
-    container_name: postgres-standby-2
+  node2:
+    container_name: node2
     build:
       context: .
       args:
@@ -83,113 +56,23 @@ services:
     environment:
       POSTGRES_USER: postgresadmin
       POSTGRES_PASSWORD: BgqzYc4lM7OypUh
-      PGDATA: /data/
       POSTGRES_DB: postgresdb
+      PRIMARY_HOSTNAME: primary
       REPLICATION_USER: replicationuser
-      PRIMARY_HOSTNAME: postgres-primary
-      CUSTOMER_PARTITIONS: |
-        [
-          {
-            "NAME": "customers_youngadult",
-            "AGE_MIN": 18,
-            "AGE_MAX": 30
-          }
-        ]
+      REPLICATION_USER_PASSWORD: BgqzYc4lM7OypUh
     volumes:
       - ./standby/config:/config
       - ./standby/archive:/mnt/server/archive
+    command: postgres -c config_file=/config/postgresql.conf
+    depends_on:
+      - primary
     ports:
       - "5435:5432"
     networks:
-      - sharding-network
-    restart: unless-stopped
-    command: postgres -c config_file=/config/postgresql.conf
-    depends_on:
-      - primary
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d postgres"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
-  standby-3:
-    container_name: postgres-standby-3
-    build:
-      context: .
-      args:
-        PATH_TO_SCRIPTS: ./standby
-    environment:
-      POSTGRES_USER: postgresadmin
-      POSTGRES_PASSWORD: BgqzYc4lM7OypUh
-      PGDATA: /data/
-      POSTGRES_DB: postgresdb
-      REPLICATION_USER: replicationuser
-      PRIMARY_HOSTNAME: postgres-primary
-      CUSTOMER_PARTITIONS: |
-        [
-          {
-            "NAME": "customers_adult",
-            "AGE_MIN": 30,
-            "AGE_MAX": 55
-          }
-        ]
-    volumes:
-      - ./standby/config:/config
-      - ./standby/archive:/mnt/server/archive
-    ports:
-      - "5436:5432"
-    networks:
-      - sharding-network
-    restart: unless-stopped
-    command: postgres -c config_file=/config/postgresql.conf
-    depends_on:
-      - primary
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d postgres"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
-  standby-4:
-    container_name: postgres-standby-4
-    build:
-      context: .
-      args:
-        PATH_TO_SCRIPTS: ./standby
-    environment:
-      POSTGRES_USER: postgresadmin
-      POSTGRES_PASSWORD: BgqzYc4lM7OypUh
-      PGDATA: /data/
-      POSTGRES_DB: postgresdb
-      REPLICATION_USER: replicationuser
-      PRIMARY_HOSTNAME: postgres-primary
-      CUSTOMER_PARTITIONS: |
-        [
-          {
-            "NAME": "customers_elder",
-            "AGE_MIN": 55,
-            "AGE_MAX": 200
-          }
-        ]
-    volumes:
-      - ./standby/config:/config
-      - ./standby/archive:/mnt/server/archive
-    ports:
-      - "5437:5432"
-    networks:
-      - sharding-network
-    restart: unless-stopped
-    command: postgres -c config_file=/config/postgresql.conf
-    depends_on:
-      - primary
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d postgres"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      - logical-replication-network
 
 networks:
-  sharding-network:
+  logical-replication-network:
 
 volumes:
   postgres_primary_volume:
