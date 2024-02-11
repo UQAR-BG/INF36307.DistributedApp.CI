@@ -1,0 +1,38 @@
+docker network create postgres
+
+docker volume create --name postgres_primary_volume -d local
+
+docker build -t postgres-cluster:latest --build-arg USER_ID=%USERNAME% --build-arg GROUP_ID=$(id -g) .
+
+docker container run -d --name postgres-primary --network postgres -e POSTGRES_USER=postgresadmin -e POSTGRES_PASSWORD=BgqzYc4lM7OypUh -e POSTGRES_DB=postgresdb -e PGDATA="/data" -v postgres_primary_volume:/data -v $PWD/postgres-primary/config:/config -v $PWD/postgres-primary/archive:/archive -p 5000:5432 postgres:15 -c 'config_file=/config/postgresql.conf'
+
+docker exec -it postgres-primary bash
+
+# Create a new user
+createuser -U postgresadmin -P -c 5 --replication replicationUser
+
+exit
+docker container run -it --rm --network postgres -v postgres_secondary_volume:/data --entrypoint /bin/bash postgres:15
+
+pg_basebackup -h postgres-primary -p 5432 -U replicationUser -D /data/ -Fp -Xs -R
+
+docker container run -d --name postgres-secondary --network postgres -e POSTGRES_USER=postgresadmin -e POSTGRES_PASSWORD=BgqzYc4lM7OypUh -e POSTGRES_DB=postgresdb -e PGDATA="/data" -v postgres_secondary_volume:/data -v $PWD/postgres-secondary/config:/config -v $PWD/postgres-secondary/archive:/mnt/server/archive -p 5001:5432 postgres:15 -c 'config_file=/config/postgresql.conf'
+
+psql --username=postgresadmin postgresdb
+psql --username=replicationuser postgresdb
+CREATE TABLE customers (firstname text, customer_id serial, date_created timestamp);
+\dt
+INSERT INTO customers (firstname, date_created) VALUES ('Bastien', CURRENT_TIMESTAMP);
+SELECT * FROM customers;
+
+docker exec -it postgres-secondary psql --username=postgresadmin postgresdb
+
+
+docker image build -t localhost/postgres-primary:latest --build-arg="PATH_TO_SCRIPTS=./source" .
+docker image build -t localhost/postgres-standby:latest --build-arg="PATH_TO_SCRIPTS=./standby" .
+
+select * from pg_stat_replication;
+select * from pg_stat_wal_receiver;
+
+# Select content of partitioned table with the partition id
+select tableoid::regclass, * from customers;

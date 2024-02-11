@@ -1,0 +1,79 @@
+version: "3.8"
+
+services:
+  primary:
+    container_name: primary
+    build:
+      context: .
+      args:
+        PATH_TO_SCRIPTS: ./source
+    environment:
+      POSTGRES_USER: postgresadmin
+      POSTGRES_PASSWORD: BgqzYc4lM7OypUh
+      POSTGRES_DB: postgresdb
+      PRIMARY_HOSTNAME: primary
+      REPLICATION_USER: replicationuser
+      REPLICATION_USER_PASSWORD: BgqzYc4lM7OypUh
+    volumes:
+      - postgres_primary_volume:/data
+      - ./source/config:/config
+      - ./source/archive:/archive
+    ports:
+      - "5433:5432"
+    networks:
+      - logical-replication-network
+
+  node1:
+    container_name: node1
+    build:
+      context: .
+      args:
+        PATH_TO_SCRIPTS: ./standby
+    environment:
+      POSTGRES_USER: postgresadmin
+      POSTGRES_PASSWORD: BgqzYc4lM7OypUh
+      POSTGRES_DB: postgresdb
+      PRIMARY_HOSTNAME: primary
+      REPLICATION_USER: replicationuser
+      REPLICATION_USER_PASSWORD: BgqzYc4lM7OypUh
+    volumes:
+      - ./standby/config:/config
+      - ./standby/archive:/mnt/server/archive
+    command: postgres -c config_file=/config/postgresql.conf
+    depends_on:
+      - primary
+    ports:
+      - "5434:5432"
+    networks:
+      - logical-replication-network
+
+  node2:
+    container_name: node2
+    build:
+      context: .
+      args:
+        PATH_TO_SCRIPTS: ./standby
+    environment:
+      POSTGRES_USER: postgresadmin
+      POSTGRES_PASSWORD: BgqzYc4lM7OypUh
+      POSTGRES_DB: postgresdb
+      PRIMARY_HOSTNAME: primary
+      REPLICATION_USER: replicationuser
+      REPLICATION_USER_PASSWORD: BgqzYc4lM7OypUh
+    volumes:
+      - ./standby/config:/config
+      - ./standby/archive:/mnt/server/archive
+    command: postgres -c config_file=/config/postgresql.conf
+    depends_on:
+      - primary
+    ports:
+      - "5435:5432"
+    networks:
+      - logical-replication-network
+
+networks:
+  logical-replication-network:
+
+volumes:
+  postgres_primary_volume:
+    external: true

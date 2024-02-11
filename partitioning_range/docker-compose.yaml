@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  primary:
+    container_name: postgres-primary
+    build:
+      context: .
+      args:
+        PATH_TO_SCRIPTS: ./source
+    environment:
+      POSTGRES_USER: postgresadmin
+      POSTGRES_PASSWORD: BgqzYc4lM7OypUh
+      PGDATA: /data/
+      POSTGRES_DB: postgresdb
+      REPLICATION_USER: replicationuser
+      REPLICATION_USER_PASSWORD: BgqzYc4lM7OypUh
+    volumes:
+      - postgres_primary_volume:/data
+      - ./source/config:/config
+      - ./source/archive:/archive
+    ports:
+      - "5433:5432"
+    networks:
+      - range-partitioning-network
+    restart: unless-stopped
+    command: postgres -c config_file=/config/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  range-partitioning-network:
+
+volumes:
+  postgres_primary_volume:
+    external: true

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-primary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-primary
+  template:
+    metadata:
+      labels:
+        app: postgres-primary
+    spec:
+      containers:
+      - name: postgres-primary
+        image: localhost/postgres-primary:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: POSTGRES_USER
+          value: postgresadmin
+        - name: POSTGRES_PASSWORD
+          value: BgqzYc4lM7OypUh
+        - name: PGDATA
+          value: /data/
+        - name: POSTGRES_DB
+          value: postgresdb
+        - name: REPLICATION_USER
+          value: replicationuser
+        - name: REPLICATION_USER_PASSWORD
+          value: BgqzYc4lM7OypUh
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-primary-volume
+          mountPath: /data
+        - name: primary-config
+          mountPath: /config
+        - name: postgres-config
+          mountPath: /data
+          subPath: postgresql.conf
+      volumes:
+      - name: postgres-primary-volume
+        persistentVolumeClaim:
+          claimName: postgres-primary-pvc
+      - name: primary-config
+        configMap:
+          name: postgres-primary-config
