@@ -1,5 +1,20 @@
 Heures passées sur le défi:
 
 --- Période 1 ---
-Heure de départ:	10:52
-Heure de fin:	
+Heure de départ:	11:00
+Heure de fin:	13:00
+
+--- Période 2 ---
+Heure de départ:	14:05
+Heure de fin:	15:45
+
+--- Période 3 ---
+Heure de départ:	16:10
+Heure de fin:	17:28
+
+Found the keys !
+Key #1 : after 15 minutes, first period
+Key #2 : at 16:50
+Key #3 : at 17:28
+
+Total time: 4h 58 minutes

