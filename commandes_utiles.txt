@@ -1,0 +1,114 @@
+--- Network discovery (hosts on network) ---
+sudo netdiscover -r <IP_RANGE>
+
+--- Port listening ---
+nc -lvp <PORT_NUMBER>
+
+-- Ping scan --
+nmap -sP <IP>/<MASK>
+
+____________________
+-- Port scan --
+
+-- Simple TCP SYN scan --
+sudo nmap -sT <IP>/<MASK>
+
+____________________
+- targets behind firewalls, check open ports
+
+--- Idle Scan ---
+sudo nmap -Pn -sI <ZOMBIE_HOST_IP> <TARGET_HOST_IP>
+
+--- Xmas Scan --- (TCP SYN packet with unusual flags turned on)
+sudo nmap -sX <TARGET_HOST_IP>
+
+--- FIN Scan ---
+sudo nmap -sF <TARGET_HOST_IP>
+
+--- All scan + all ports ---
+sudo nmap -sV -p <IP>
+
+
+- packet crafting
+
+--- Malformed data --- (knocking over systems, evading IDS)
+sudo hping3 <TARGET_HOST_IP> -U -S -s 55355 -d 8080
+
+--- Ethernet packet generator ---
+sudo packeth
+
+
+- banner grabbing
+
+(get info on a potential service)
+telnet <TARGET_HOST_IP> <TARGET_PORT> (p. ex. 22)
+
+nc -v <TARGET_DOMAIN> 80
+HEAD / HTTP/1.1
+Host: <TARGET_DOMAIN>
+
+(check mail service)
+dig mx <TARGET_DOMAIN>
+nc -v <TARGET_MAIL_DOMAIN> 25
+
+(for protocols with encryption)
+openssl s_client -connect <TARGET_HOST_IP>:443
+HEAD / HTTP/1.1
+Host: <TARGET_DOMAIN>
+
+
+- enumeration
+
+whois <TARGET_DOMAIN>
+dig @<DOMAIN_SERVER> <TARGET_DOMAIN> axfr
+
+dig @<DOMAIN_SERVER> version.bind txt chaos
+
+net view \\<TARGET_HOST_IP> (windows)
+
+
+- SNMP (Simple Network Management Protocol)
+
+--- SNMP walk --- (system info)
+snmpwalk -v 1 -c public <TARGET_HOST_IP>
+__________________
+
+- Service discovery
+
+--- Web apps ---
+nikto -h <TARGET_HOST_IP>
+
+--- Intercept web transmissions ---
+burpsuite
+__________________
+
+
+- passwords
+
+--- Password cracking ---
+sudo unshadow /etc/passwd /etc/shadow > mypasswd
+john --wordlist=all.lst mypasswd (long process)
+
+hydra
+
+crackstation (website)
+
+--- rainbow tables (database of password hashes) ---
+ophcrack
+
+cain - password recovery utility
+
+--- Wordpress brute force ---
+wpscan
+____________________
+
+- taking command
+
+--- Smart terminal in Python ---
+python -c "import pty; pty.spawn("/bin/sh")"
+
+____________________
+- privileges
+
+find / -type f -perm +6000 -ls
+find / -type f -perm -04000 -ls 2>/dev/null
